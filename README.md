@@ -6,7 +6,7 @@ When applied, this patch modified libinput's `filter-touchpad.c` with a custom t
 When built, `libinput.so.10.13.0` is copied into `/usr/lib64/` to replace the old `libinput.so.10.13.0`. Updating `libinput` will revert this patch's changes. On Fedora, you can prevent `libinput` from updating with `echo "excludepkgs=libinput*" | sudo tee -a /etc/dnf/dnf.conf`.
 
 # Prerequisites
-Your distribution must be using `/usr/lib64/libinput.so.10.13.0`, as this patch is designed to replace it. The version of libinput this patch is designed for might be outdated by the time you apply it. The `build.sh` script that applies the patch requires Fedora on GNOME, but in principle can be edited to apply to other distributions. `build.sh` should automatically download prerequisite packages when run for the first time.
+Your distribution must be using `/usr/lib64/libinput.so.10.13.0`, as this patch is designed to replace it. The version of libinput this patch is designed for might be outdated by the time you apply it. The `build.sh` script that applies the patch requires Fedora on GNOME, but in principle can be edited to apply to other distributions. `build.sh` should automatically download prerequisite packages when run for the first time. The installed dependencies are `meson ninja-build cmake gcc gcc-c++ libudev-devel libevdev-devel libwacom-devel glib2-devel mtdev-devel`.
 
 # Usage
 
