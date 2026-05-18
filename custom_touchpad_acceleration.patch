@@ -118,13 +118,14 @@ index 00000000..33f47fdc
 +
 +# ⚠️ Interactive Deployment Gate (Warning before session crash)
 +echo ""
-+echo "⚠️  CRITICAL WARNING: Overwriting the live system library file will likely"
++echo "⚠️  CRITICAL WARNING: Overwriting the libinput shared object file while it is in use will likely"
 +echo "crash your active GNOME display server and instantly log you out of your session."
 +read -p "Do you want to proceed with deploying the changes right now? (y/N): " run_deploy
 +
 +if [[ ! "$run_deploy" =~ ^[Yy]$ ]]; then
 +    echo "✅ Success! The updated library compiled perfectly inside: $BUILD_DIR"
-+    echo "Deployment skipped. To apply it later without a sudden crash, copy it manually from a virtual terminal (TTY) or restart."
++    echo "Deployment skipped. You will have to manually replace /usr/lib64/libinput.so.13.10.0"
++    echo "with libinput/builddir/libinput.so.13.10.0 to apply the changes."
 +    exit 0
 +fi
 +
