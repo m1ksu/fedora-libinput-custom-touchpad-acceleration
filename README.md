@@ -28,7 +28,7 @@ In GNOME, replacing `/usr/lib64/libinput.so.10.13.0` should result in instant lo
 
 ## On other distributions or desktop environments
 
-To automatically download libinput and this repository, and apply the patch:
+To automatically download libinput and this repository, and apply the patch to `src/filter-touchpad.c`:
 ```bash
 git clone https://gitlab.freedesktop.org/libinput/libinput/
 git clone https://github.com/m1ksu/fedora-libinput-custom-touchpad-acceleration
