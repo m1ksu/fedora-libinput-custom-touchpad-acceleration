@@ -223,7 +223,7 @@ index 61a4d108..d1a89a75 100644
 +
 +	// 3. Final Multiplier calculation
 +	double factor = INTER_SENSITIVITY * (1.0 + accel_amount);
-+	
++
 +	double screen_dots_per_mm = 1.25 * 133.0 / 25.4;
 +	struct normalized_coords cret;
 +	cret.x = mm_x * factor * screen_dots_per_mm * accel->speed_factor;
@@ -249,7 +249,7 @@ index 61a4d108..d1a89a75 100644
 -	normalized = normalize_for_dpi(unaccelerated, accel->dpi);
 -	normalized.x = baseline * TP_MAGIC_SLOWDOWN * normalized.x;
 -	normalized.y = baseline * TP_MAGIC_SLOWDOWN * normalized.y;
-+	
++
 +	struct normalized_coords kdpi = normalize_for_dpi(unaccelerated, accel->dpi);
 +	double mm_x = kdpi.x * 25.4 / 1000;
 +	double mm_y = kdpi.y * 25.4 / 1000;
