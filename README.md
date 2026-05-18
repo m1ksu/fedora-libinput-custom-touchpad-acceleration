@@ -8,8 +8,7 @@ Your distribution must be using `/usr/lib64/libinput.so.13.10.0`, as this patch 
 
 # Usage
 
-The configurable acceleration values can be adjusted directly in `libinput/src/filter-touchpad.c`. They 
-To download and use this patch, run this:
+After patching, configurable acceleration values can be adjusted directly in `libinput/src/filter-touchpad.c` starting at line 117, or interactively through `build.sh` on Fedora.
 
 ## On Fedora Workstation 44 
 
