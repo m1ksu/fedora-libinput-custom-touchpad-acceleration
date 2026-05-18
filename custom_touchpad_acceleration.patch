@@ -124,8 +124,8 @@ index 00000000..33f47fdc
 +
 +if [[ ! "$run_deploy" =~ ^[Yy]$ ]]; then
 +    echo "✅ Success! The updated library compiled perfectly inside: $BUILD_DIR"
-+    echo "Deployment skipped. You will have to manually replace /usr/lib64/libinput.so.13.10.0"
-+    echo "with libinput/builddir/libinput.so.13.10.0 to apply the changes."
++    echo "Deployment skipped. You will have to manually replace /usr/lib64/libinput.so.10.13.0"
++    echo "with libinput/builddir/libinput.so.10.13.0 to apply the changes."
 +    exit 0
 +fi
 +
