@@ -1,7 +1,7 @@
 This works perfectly on my machine, but your milage may vary. The patch is an impermanent bandaid solution. I do not guarantee the script to work for everyone!
 
 # What?
-When applied, this patch modified libinput's `filter-touchpad.c` with a custom touchpad acceleration behaviour, and provides a script that automatically rebuilds libinput with custom values for touchpad acceleration. The configurable values are based on KovaaK's Interaccel (https://github.com/KovaaK/InterAccel) settings.
+When applied, this patch modifies libinput's `filter-touchpad.c` with customizable touchpad acceleration behaviour, and provides a script that automatically rebuilds libinput with custom values for touchpad acceleration. The configurable values are based on KovaaK's Interaccel (https://github.com/KovaaK/InterAccel) settings.
 
 When built, `libinput.so.10.13.0` is copied into `/usr/lib64/` to replace the old `libinput.so.10.13.0`. Updating `libinput` will revert this patch's changes. On Fedora, you can prevent `libinput` from updating with `echo "excludepkgs=libinput*" | sudo tee -a /etc/dnf/dnf.conf`.
 
