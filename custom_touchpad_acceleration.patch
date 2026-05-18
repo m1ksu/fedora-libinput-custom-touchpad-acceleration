@@ -1,0 +1,321 @@
+diff --git a/build.sh b/build.sh
+new file mode 100755
+index 00000000..33f47fdc
+--- /dev/null
++++ b/build.sh
+@@ -0,0 +1,149 @@
++#!/bin/bash
++
++# Exit the script immediately if any command fails
++set -e
++
++BUILD_DIR="builddir"
++TARGET_DIR="/usr/lib64"
++TARGET_FILE="$TARGET_DIR/libinput.so.10.13.0"
++SOURCE_C="src/filter-touchpad.c"
++
++# 🔍 Step 0a: Verify Linux Distribution
++IS_FEDORA=false
++if [ -f /etc/os-release ]; then
++    if grep -q '^ID=fedora' /etc/os-release; then
++        IS_FEDORA=true
++    fi
++fi
++
++if [ "$IS_FEDORA" = false ]; then
++    echo "⚠️  WARNING: This script is explicitly tailored for Fedora GNOME!"
++    echo "It looks like you are running a different Linux distribution."
++    echo ""
++    echo "To adapt this script to your environment, you generally must change:"
++    echo "  1. The Package Manager: Swap 'dnf install' for your system tool (e.g., 'apt', 'pacman')."
++    echo "  2. Target Directory: Change TARGET_DIR. Ubuntu/Debian uses '/usr/lib/x86_64-linux-gnu', Arch uses '/usr/lib'."
++    echo "  3. Target Filename: Change TARGET_FILE to match your system's exact native libinput shared object filename version."
++    echo "  4. Security Labels: Non-SELinux distributions (like Ubuntu/Arch) do not use 'restorecon'. You can remove that step."
++    echo ""
++    read -p "Do you want to attempt running the script anyway? (y/N): " choice
++    if [[ ! "$choice" =~ ^[Yy]$ ]]; then
++        echo "❌ Build aborted."
++        exit 1
++    fi
++fi
++
++# 📦 Step 0b: First-Time Build Setup (Dependencies & Meson Init)
++if [ ! -d "$BUILD_DIR" ] || [ ! -f "$BUILD_DIR/build.ninja" ]; then
++    echo "🚀 First-time environment setup detected!"
++
++    if [ "$IS_FEDORA" = true ]; then
++        echo "📥 Installing compilation dependencies via DNF..."
++        sudo dnf install -y meson ninja-build cmake gcc gcc-c++ libudev-devel libevdev-devel libwacom-devel glib2-devel mtdev-devel
++    else
++        echo "⚠️  Please ensure you have manually installed meson, ninja, cmake, gcc, and development headers for udev/evdev before proceeding."
++    fi
++
++    echo "⚙️  Initializing the Meson build environment..."
++    meson setup "$BUILD_DIR" --prefix=/usr -Ddebug-gui=false
++fi
++
++# 🎛️ Step 0c: Interactive Acceleration Configuration
++CONFIG_TXT="/tmp/libinput_accel_config.txt"
++
++if [ ! -f "$SOURCE_C" ]; then
++    echo "❌ Error: $SOURCE_C not found! Make sure you run this script from the root of your libinput directory."
++    exit 1
++fi
++
++# Read current values out of the code file to pre-populate the editor session
++CURR_SENS=$(grep '#define INTER_SENSITIVITY' "$SOURCE_C" | awk '{print $3}' || echo "1.0")
++CURR_ACCEL=$(grep '#define INTER_ACCELERATION' "$SOURCE_C" | awk '{print $3}' || echo "0.0062")
++CURR_CAP=$(grep '#define INTER_SPEED_CAP' "$SOURCE_C" | awk '{print $3}' || echo "0.0")
++CURR_OFF=$(grep '#define INTER_OFFSET' "$SOURCE_C" | awk '{print $3}' || echo "0.0")
++CURR_POW=$(grep '#define INTER_POWER' "$SOURCE_C" | awk '{print $3}' || echo "2.0")
++
++cat << EOF > "$CONFIG_TXT"
++# Modify the values below. Save and close the editor to compile your driver automatically.
++# Note: Do not add spaces around the '=' sign.
++
++SENSITIVITY=$CURR_SENS
++ACCELERATION=$CURR_ACCEL
++SPEED_CAP=$CURR_CAP
++OFFSET=$CURR_OFF
++POWER=$CURR_POW
++EOF
++
++# Launch system editor (defaults to nano if $EDITOR isn't declared)
++echo "📝 Opening acceleration configuration manager..."
++${EDITOR:-nano} "$CONFIG_TXT"
++
++# Extract the newly updated values from the file
++NEW_SENS=$(grep '^SENSITIVITY=' "$CONFIG_TXT" | cut -d= -f2 | tr -d '[:space:]')
++NEW_ACCEL=$(grep '^ACCELERATION=' "$CONFIG_TXT" | cut -d= -f2 | tr -d '[:space:]')
++NEW_CAP=$(grep '^SPEED_CAP=' "$CONFIG_TXT" | cut -d= -f2 | tr -d '[:space:]')
++NEW_OFF=$(grep '^OFFSET=' "$CONFIG_TXT" | cut -d= -f2 | tr -d '[:space:]')
++NEW_POW=$(grep '^POWER=' "$CONFIG_TXT" | cut -d= -f2 | tr -d '[:space:]')
++
++# Validation check to prevent compilation failures from empty configurations
++if [ -z "$NEW_SENS" ] || [ -z "$NEW_ACCEL" ] || [ -z "$NEW_CAP" ] || [ -z "$NEW_OFF" ] || [ -z "$NEW_POW" ]; then
++    echo "❌ Error: One or more tracking metrics were left entirely blank. Build aborted."
++    exit 1
++fi
++
++echo "💾 Injecting new parameters directly into $SOURCE_C..."
++sed -i -E "s/(#define INTER_SENSITIVITY[[:space:]]+)[0-9.]+/\1$NEW_SENS/" "$SOURCE_C"
++sed -i -E "s/(#define INTER_ACCELERATION[[:space:]]+)[0-9.]+/\1$NEW_ACCEL/" "$SOURCE_C"
++sed -i -E "s/(#define INTER_SPEED_CAP[[:space:]]+)[0-9.]+/\1$NEW_CAP/" "$SOURCE_C"
++sed -i -E "s/(#define INTER_OFFSET[[:space:]]+)[0-9.]+/\1$NEW_OFF/" "$SOURCE_C"
++sed -i -E "s/(#define INTER_POWER[[:space:]]+)[0-9.]+/\1$NEW_POW/" "$SOURCE_C"
++
++echo "⚙️  Parameters successfully updated:"
++echo "   • Sensitivity:  $NEW_SENS"
++echo "   • Acceleration: $NEW_ACCEL"
++echo "   • Speed Cap:    $NEW_CAP"
++echo "   • Offset:       $NEW_OFF"
++echo "   • Power:        $NEW_POW"
++echo ""
++
++# 🔨 Step 1: Compiling the patched libinput source code...
++echo "🔨 Step 1: Compiling the patched libinput source code..."
++ninja -C "$BUILD_DIR"
++
++# ⚠️ Interactive Deployment Gate (Warning before session crash)
++echo ""
++echo "⚠️  CRITICAL WARNING: Overwriting the live system library file will likely"
++echo "crash your active GNOME display server and instantly log you out of your session."
++read -p "Do you want to proceed with deploying the changes right now? (y/N): " run_deploy
++
++if [[ ! "$run_deploy" =~ ^[Yy]$ ]]; then
++    echo "✅ Success! The updated library compiled perfectly inside: $BUILD_DIR"
++    echo "Deployment skipped. To apply it later without a sudden crash, copy it manually from a virtual terminal (TTY) or restart."
++    exit 0
++fi
++
++# 🎛️ Step 2: Switching GNOME touchpad profile to 'flat'...
++echo "🎛️ Step 2: Switching GNOME touchpad profile to 'flat'..."
++gsettings set org.gnome.desktop.peripherals.touchpad accel-profile 'flat'
++sleep 0.5
++
++# 🚀 Step 3: Overwriting the system library file
++echo "🚀 Step 3: Overwriting the system library file..."
++if [ -f "$BUILD_DIR/src/libinput.so.10.13.0" ]; then
++    SOURCE_FILE="$BUILD_DIR/src/libinput.so.10.13.0"
++else
++    SOURCE_FILE="$BUILD_DIR/libinput.so.10.13.0"
++fi
++
++sudo cp "$SOURCE_FILE" "$TARGET_FILE"
++
++# 🛡️ Step 4: Applying SELinux labels...
++echo "🛡️ Step 4: Applying SELinux labels..."
++if command -v restorecon &> /dev/null; then
++    sudo restorecon -v "$TARGET_FILE"
++fi
++
++# 🎛️ Step 5: Switching GNOME touchpad profile back to 'adaptive'...
++echo "🎛️ Step 5: Switching GNOME touchpad profile back to 'adaptive'..."
++gsettings set org.gnome.desktop.peripherals.touchpad accel-profile 'adaptive'
++
++echo "🚀 Flushing shared library buffers..."
++sudo ldconfig
++echo "✅ Success! Your updated mouse acceleration configuration is live."
+diff --git a/src/filter-touchpad.c b/src/filter-touchpad.c
+index 61a4d108..d1a89a75 100644
+--- a/src/filter-touchpad.c
++++ b/src/filter-touchpad.c
+@@ -29,6 +29,7 @@
+ #include <math.h>
+ #include <stdint.h>
+ #include <stdlib.h>
++#include <stdio.h>
+ 
+ #include "filter-private.h"
+ #include "filter.h"
+@@ -56,6 +57,9 @@ struct touchpad_accelerator {
+ 	int dpi;
+ 
+ 	double speed_factor; /* factor based on speed setting */
++
++	/* Custom high-precision tracking items */
++	usec_t prev_time;
+ };
+ 
+ /**
+@@ -98,15 +102,44 @@ accelerator_filter_touchpad(struct motion_filter *filter,
+ {
+ 	struct touchpad_accelerator *accel = (struct touchpad_accelerator *)filter;
+ 
+-	/* Accelerate for device units, normalize afterwards */
+-	double accel_factor =
+-		calculate_acceleration_factor(accel, unaccelerated, data, time);
+-	const struct device_float_coords accelerated = {
+-		.x = unaccelerated->x * accel_factor,
+-		.y = unaccelerated->y * accel_factor,
+-	};
+-
+-	return normalize_for_dpi(&accelerated, accel->dpi);
++	struct normalized_coords kdpi = normalize_for_dpi(unaccelerated, accel->dpi);
++	double mm_x = kdpi.x * 25.4 / 1000;
++	double mm_y = kdpi.y * 25.4 / 1000;
++	double dt = (double)usec_as_uint64_t(usec_sub(time, accel->prev_time)) / 1000000.0;  // seconds
++
++	if (dt < 0.002 || dt > 0.02)
++		dt = 0.01;
++	accel->prev_time = time;
++	double velocity = sqrt((mm_x * mm_x + mm_y * mm_y) / (dt * dt));  // mm/s
++
++	// 🎛️ POHOVAT / INTERACCEL CONFIGURATION
++	// Match these values to your UI settings panel perfectly:
++	#define INTER_SENSITIVITY   1.0
++	#define INTER_ACCELERATION  0.005
++	#define INTER_SPEED_CAP     0.0      // 0.0 means disabled (no cap)
++	#define INTER_OFFSET        50.0
++	#define INTER_POWER         1.5      // 2.0 = Perfect Linear growth
++
++	// 1. Apply Speed Cap (Clamps input velocity growth)
++	double v_for_accel = velocity;
++	if (INTER_SPEED_CAP > 0.0 && v_for_accel > INTER_SPEED_CAP) {
++		v_for_accel = INTER_SPEED_CAP;
++	}
++
++	// 2. Apply Offset & Power Curve calculations
++	double accel_amount = 0.0;
++	if (v_for_accel > INTER_OFFSET) {
++		accel_amount = INTER_ACCELERATION * pow(v_for_accel - INTER_OFFSET, INTER_POWER - 1.0);
++	}
++
++	// 3. Final Multiplier calculation
++	double factor = INTER_SENSITIVITY * (1.0 + accel_amount);
++	
++	double screen_dots_per_mm = 1.25 * 133.0 / 25.4;
++	struct normalized_coords cret;
++	cret.x = mm_x * factor * screen_dots_per_mm * accel->speed_factor;
++	cret.y = mm_y * factor * screen_dots_per_mm * accel->speed_factor;
++	return cret;
+ }
+ 
+ /* Maps the [-1, 1] speed setting into a constant acceleration
+@@ -145,19 +178,13 @@ touchpad_constant_filter(struct motion_filter *filter,
+ {
+ 	struct touchpad_accelerator *accel = (struct touchpad_accelerator *)filter;
+ 	struct normalized_coords normalized;
+-	/* We need to use the same baseline here as the accelerated code,
+-	 * otherwise our unaccelerated speed is different to the accelerated
+-	 * speed on the plateau.
+-	 *
+-	 * This is a hack, the baseline should be incorporated into the
+-	 * TP_MAGIC_SLOWDOWN so we only have one number here but meanwhile
+-	 * this will do.
+-	 */
+-	const double baseline = 0.9;
+-
+-	normalized = normalize_for_dpi(unaccelerated, accel->dpi);
+-	normalized.x = baseline * TP_MAGIC_SLOWDOWN * normalized.x;
+-	normalized.y = baseline * TP_MAGIC_SLOWDOWN * normalized.y;
++	
++	struct normalized_coords kdpi = normalize_for_dpi(unaccelerated, accel->dpi);
++	double mm_x = kdpi.x * 25.4 / 1000;
++	double mm_y = kdpi.y * 25.4 / 1000;
++	const double display_dpmm = 1.25 * 133.0 / 25.4;
++	normalized.x = mm_x * display_dpmm * accel->speed_factor;
++	normalized.y = mm_y * display_dpmm * accel->speed_factor;
+ 
+ 	return normalized;
+ }
+@@ -215,51 +242,6 @@ touchpad_accel_profile_linear(struct motion_filter *filter,
+ 	/* Convert to mm/s because that's something one can understand */
+ 	speed_in = v_us2s(speed_in) * 25.4 / accel_filter->dpi;
+ 
+-	/*
+-	   Our acceleration function calculates a factor to accelerate input
+-	   deltas with. The function is a double incline with a plateau,
+-	   with a rough shape like this:
+-
+-	  accel
+-	 factor
+-	   ^         ______
+-	   |        )
+-	   |  _____)
+-	   | /
+-	   |/
+-	   +-------------> speed in
+-
+-	   Except the second incline is a curve, but well, asciiart.
+-
+-	   The first incline is a linear function in the form
+-		   y = ax + b
+-		   where y is speed_out
+-			 x is speed_in
+-			 a is the incline of acceleration
+-			 b is minimum acceleration factor
+-	   for speeds up to the lower threshold, we decelerate, down to 30%
+-	   of input speed.
+-		   hence 1 = a * 7 + 0.3
+-		       0.7 = a * 7  => a := 0.1
+-		   deceleration function is thus:
+-			y = 0.1x + 0.3
+-
+-	   The first plateau is the baseline.
+-
+-	   The second incline is a curve up, based on magic numbers
+-	   obtained by trial-and-error.
+-
+-	   Above the second incline we have another plateau because
+-	   by then you're moving so fast that extra acceleration doesn't
+-	   help.
+-
+-	  Note:
+-	  * The minimum threshold is a result of trial-and-error and
+-	    has no other special meaning.
+-	  * 0.3 is chosen simply because it is above the Nyquist frequency
+-	    for subpixel motion within a pixel.
+-	*/
+-
+ 	if (speed_in < 7.0) {
+ 		factor = min(baseline, 0.1 * speed_in + 0.3);
+ 		/* up to the threshold, we keep factor 1, i.e. 1:1 movement */
+@@ -321,5 +303,7 @@ create_pointer_accelerator_filter_touchpad(int dpi,
+ 		pointer_delta_smoothener_create(event_delta_smooth_threshold,
+ 						event_delta_smooth_value);
+ 
++	filter->prev_time = usec_from_millis(0);
++
+ 	return &filter->base;
+ }
