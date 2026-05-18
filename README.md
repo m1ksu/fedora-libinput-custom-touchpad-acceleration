@@ -1,3 +1,5 @@
+This works on my machine, but your milage may vary. I do not guarantee the script to work for everyone!
+
 # What?
 When applied, this patch modified libinput's `filter-touchpad.c` with a custom touchpad acceleration behaviour, and provides a script that automatically rebuilds libinput with custom values for touchpad acceleration. The configurable values are based on KovaaK's Interaccel (https://github.com/KovaaK/InterAccel) settings.
 
