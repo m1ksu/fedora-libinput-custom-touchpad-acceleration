@@ -14,6 +14,8 @@ After patching, configurable acceleration values can be adjusted directly in `li
 
 ## On Fedora Workstation 44 
 
+`build.sh` is a helper script that automates the editing, building, and deployment of the replacement libinput. It will install libinput's dependencies with `dnf install`. 
+
 ```bash
 git clone https://gitlab.freedesktop.org/libinput/libinput/
 git clone https://github.com/m1ksu/fedora-libinput-custom-touchpad-acceleration
@@ -22,7 +24,7 @@ git apply ../fedora-libinput-custom-touchpad-acceleration/custom_touchpad_accele
 ./build.sh
 ```
 
-In GNOME, replacing `/usr/lib64/libinput.so.10.13.0` should result in instant log-out as gdm crashes. You can choose to not immediately replace the file when running `build.sh`, but you will have to manually replace `/usr/lib64/libinput.so.10.13.0` with `libinput/builddir/libinput.so.10.13.0` to apply the changes.
+In GNOME, replacing `/usr/lib64/libinput.so.10.13.0` should result in instant log-out as gdm crashes. You can choose to not immediately replace the file when running `build.sh`, but you will have to manually replace `/usr/lib64/libinput.so.10.13.0` with `libinput/builddir/libinput.so.10.13.0` to apply the changes. In any case, the changes will not apply until you have logged out.
 
 ## On other distributions or desktop environments
 
